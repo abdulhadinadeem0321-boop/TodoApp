@@ -1,76 +1,156 @@
 import React, { useState, useEffect } from "react";
 
 export default function TodoApp() {
-  // State to store todos
+  
   const [todos, setTodos] = useState(() => {
-    // Get saved todos from localStorage (if any)
-    const saved = localStorage.getItem("todos");
+    const saved = localStorage.getItem("todos_v1");
     return saved ? JSON.parse(saved) : [];
   });
+  const [text, setText] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [editingId, setEditingId] = useState(null);
+  const [editingText, setEditingText] = useState("");
 
-  const [task, setTask] = useState("");
-
-  // Save todos in localStorage whenever they change
+  
   useEffect(() => {
-    localStorage.setItem("todos", JSON.stringify(todos));
+    localStorage.setItem("todos_v1", JSON.stringify(todos));
   }, [todos]);
 
-  // Add new todo
+  
   const addTodo = () => {
-    if (task.trim() === "") return;
-    setTodos([...todos, { id: Date.now(), text: task, completed: false }]);
-    setTask("");
+    if (!text.trim()) return;
+    setTodos([...todos, { id: Date.now(), text: text.trim(), completed: false }]);
+    setText("");
   };
 
-  // Toggle completed
-  const toggleTodo = (id) => {
+  
+  const toggleTodo = (id) =>
     setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      todos.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t
       )
     );
+
+  
+  const deleteTodo = (id) =>
+    setTodos(todos.filter((t) => t.id !== id));
+
+  
+  const clearCompleted = () =>
+    setTodos(todos.filter((t) => !t.completed));
+
+
+  const clearAll = () => {
+    if (window.confirm("Delete all todos?")) setTodos([]);
   };
 
-  // Delete todo
-  const deleteTodo = (id) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
+  
+  const startEdit = (id, text) => {
+    setEditingId(id);
+    setEditingText(text);
+  };
+
+  
+  const saveEdit = (id) => {
+    if (!editingText.trim()) {
+      cancelEdit();
+      return;
+    }
+    setTodos(
+      todos.map((t) =>
+        t.id === id ? { ...t, text: editingText.trim() } : t
+      )
+    );
+    setEditingId(null);
+    setEditingText("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditingText("");
+  };
+
+  const visible = todos.filter((t) => {
+    if (filter === "pending") return !t.completed;
+    if (filter === "completed") return t.completed;
+    return true; // all
+  });
+
+
+  const counts = {
+    total: todos.length,
+    pending: todos.filter((t) => !t.completed).length,
+    completed: todos.filter((t) => t.completed).length,
   };
 
   return (
-    <div className="container" style={{ textAlign: "center", marginTop: "40px" }}>
-      <h1 className="h1" >React TODO App </h1>
+    <div className="app-container">
+      <nav className="navbar">
+        <h2 className="logo"> TODO_______________.__________________.___________________.______ App</h2>
+        <div className="nav-buttons">
+          <button onClick={() => setFilter("all")}>
+            All ({counts.total})
+          </button>
+          <button onClick={() => setFilter("pending")}>
+            Pending ({counts.pending})
+          </button>
+          <button onClick={() => setFilter("completed")}>
+            Completed ({counts.completed})
+          </button>
+        </div>
+      </nav>
 
-      <input className="input"
-        type="text"
-        placeholder="Enter task..."
-        value={task}
-        onChange={(e) => setTask(e.target.value)}
-      />
-      <button className="btn1" onClick={addTodo}>Add</button>
+      
+      <div className="todo-app">
+        <div className="input-row">
+          <input className="todo-input"
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTodo()}
+            placeholder="Enter a task..."
+          />
+          <button  className="btn" onClick={addTodo}>Add</button>
+        </div>
 
-      <ul className="list" style={{ listStyle: "none", padding: 0 }}>
-        {todos.map((todo) => (
-          <li className="li"
-            key={todo.id}
-            style={{
-              margin: "10px 0",
-              textDecoration: todo.completed ? "line-through" : "none",
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={todo.completed}
-              onChange={() => toggleTodo(todo.id)}
-            />
-            {todo.text}
-            <button className="btn2"
-              onClick={() => deleteTodo(todo.id)}
-            >
-              Delete
-            </button>
-          </li>
-        ))}
-      </ul>
+        <ul className="todo-list">
+          {visible.map((t) => (
+            <li key={t.id} className={t.completed ? "done" : ""}>
+              {editingId === t.id ? (
+                <input
+                  value={editingText}
+                  onChange={(e) => setEditingText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveEdit(t.id);
+                    if (e.key === "Escape") cancelEdit();
+                  }}
+                  onBlur={() => saveEdit(t.id)}
+                  autoFocus
+                />
+              ) : (
+                <>
+                  <input 
+                    className="checkbox"
+                    type="checkbox"
+                    checked={t.completed}
+                    onChange={() => toggleTodo(t.id)}
+                  />
+                  <span onDoubleClick={() => startEdit(t.id, t.text)}>
+                    {t.text}
+                  </span>
+                  <button onClick={() => startEdit(t.id, t.text)}>Edit</button>
+                  <button onClick={() => deleteTodo(t.id)}>Delete</button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        <div className="clear-buttons">
+          <button className="clear-btn" onClick={clearCompleted}>Clear Completed</button>
+          <button className="clear-btn" onClick={clearAll}>Clear All</button>
+        </div>
+      </div>
     </div>
   );
 }
